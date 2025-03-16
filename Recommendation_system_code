@@ -22,6 +22,8 @@ producto(chocorramo, comida).
 producto(gansito, comida).
 producto(manzana, comida).
 producto(pera, comida).
+producto(camisa, ropa).
+producto(pantalon, ropa).
 
 % ---------------------------
 % Hechos: Compras
@@ -82,8 +84,9 @@ similar(vestido, falda).
 similar(ipad, iphone).  
 similar(iphone, ipad). 
 similar(televisor, estereo).  
-similar(estereo, televisor). 
-
+similar(estereo, televisor).  
+similar(camiseta, pantalon).
+similar(pantalon, camiseta).
 
 % Filtros basados en contenido (solo productos similares)
 recomendar_contenido(Usuario, Item) :-
@@ -111,13 +114,26 @@ recomendar_colaborativo(Usuario, Item) :-
     similar(ProductoComprado, Item),  % Solo productos similares
     \+ compra(Usuario, Item).
 
+% Esta regla genera una lista (Lista) de ítems recomendados para un Usuario.
+% La lista se forma combinando todas las recomendaciones de distintos métodos:
+% - Basado en contenido (recomendar_contenido)
+% - Recomendación cruzada (recomendar_cruzada)
+% - Filtrado colaborativo (recomendar_colaborativo)
+% - Recomendación recursiva (recomendar_recursiva)
+% Se eliminan duplicados y se ordena la lista resultante.
+recomendar_lista(Usuario, Lista) :-
+    findall(Item,(  recomendar_contenido(Usuario, Item);  
+                 recomendar_cruzada(Usuario, Item);  recomendar_colaborativo(Usuario, Item);  
+                 recomendar_recursiva(Usuario, Item)),ItemsConDuplicados),
+    sort(ItemsConDuplicados, Lista).
+
+
 recomendar_recursiva(Usuario, Item) :-
     compra(Usuario, Producto),                % Obtiene un producto comprado por el usuario
     producto(Producto, Categoria),              % Determina la categoría del producto
     productos_en_categoria(Categoria, Lista),   % Recolecta todos los productos de esa categoría
-    buscar_en_lista(Lista, Item),               % Busca recursivamente un producto bien calificado
-    \+ compra(Usuario, Item).                   % Evita recomendar productos ya comprados
-
+    buscar_en_lista(Lista, Item).               % Busca recursivamente un producto bien calificado
+    
 % Obtiene la lista de todos los productos pertenecientes a una categoría
 productos_en_categoria(Categoria, Lista) :-
     findall(Producto, producto(Producto, Categoria), Lista).
@@ -136,4 +152,4 @@ top_items_usuario(Usuario, Items) :-
 top_items_usuarios([], []).
 top_items_usuarios([Usuario|Resto], [(Usuario, Items)|Resultados]) :-
     top_items_usuario(Usuario, Items),
-    top_items_usuarios(Resto, Resultados).
+    top_items_usuarios(Resto, Resultados).
