@@ -1,0 +1,139 @@
+% ---------------------------
+% Hechos: Usuarios
+% ---------------------------
+usuario(juan).
+usuario(maria).
+usuario(ana).
+usuario(carlos).
+usuario(pedro).
+
+% ---------------------------
+% Hechos: Productos y Categorías
+% ---------------------------
+producto(ipad, electronica).
+producto(iphone, electronica).
+producto(televisor, electronica).
+producto(estereo, electronica).
+producto(camiseta, ropa).
+producto(traje, ropa).
+producto(falda, ropa_mujer).
+producto(vestido, ropa_mujer).
+producto(chocorramo, comida).
+producto(gansito, comida).
+producto(manzana, comida).
+producto(pera, comida).
+
+% ---------------------------
+% Hechos: Compras
+% ---------------------------
+compra(juan, gansito).
+compra(juan, traje).
+
+compra(maria, manzana).
+compra(maria, pera).
+compra(maria, falda).
+compra(maria, televisor).
+compra(maria, ipad).
+
+compra(ana, manzana).
+compra(ana, pera).
+compra(ana, televisor).
+compra(ana, vestido).
+compra(ana, iphone).
+
+compra(carlos, traje).
+compra(carlos, camisa).
+compra(pedro, traje).
+compra(pedro, camisa).
+
+% ---------------------------
+% Hechos: Calificaciones
+% ---------------------------
+calificacion(juan, gansito,5).
+calificacion(juan, traje,5).
+
+calificacion(maria, manzana,5).
+calificacion(maria, pera,1).
+calificacion(maria, falda,5).
+calificacion(maria, televisor,5).
+calificacion(maria, ipad,5).
+
+calificacion(ana, manzana,5).
+calificacion(ana, pera,1).
+calificacion(ana, televisor,5).
+calificacion(ana, vestido,5).
+
+calificacion(carlos, traje,5).
+calificacion(carlos, camisa,5).
+calificacion(pedro, traje,5).
+calificacion(pedro, camisa,5).
+
+% ---------------------------
+% Hechos: Similitud entre productos
+% ---------------------------
+similar(chocorramo, gansito).  
+similar(gansito, chocorramo).  
+similar(manzana, pera).        
+similar(pera, manzana).       
+similar(traje, camisa).   
+similar(camisa, traje).     
+similar(falda, vestido).     
+similar(vestido, falda).    
+similar(ipad, iphone).  
+similar(iphone, ipad). 
+similar(televisor, estereo).  
+similar(estereo, televisor). 
+
+
+% Filtros basados en contenido (solo productos similares)
+recomendar_contenido(Usuario, Item) :-
+    compra(Usuario, ProductoComprado),
+    similar(ProductoComprado, Item),
+    \+ compra(Usuario, Item).
+
+% Árboles de venta/recomendación cruzada (solo productos similares)
+recomendar_cruzada(Usuario, Item) :-
+    compra(Usuario, ProductoComprado),
+    similar(ProductoComprado, Item),
+    compra(_, Item), 					% El ítem ha sido comprado por alguien
+    \+ compra(Usuario, Item).
+
+% Filtros colaborativos (solo productos similares)
+usuarios_similares(Usuario, Similar) :-
+    compra(Usuario, Producto), %retorna productos que usuario ha comprado
+    compra(Similar, Producto), % para cada producto del usuario busca un usu similar
+    Usuario \= Similar.  %retorna el similar
+
+recomendar_colaborativo(Usuario, Item) :-
+    usuarios_similares(Usuario, Similar),  % Encuentra usuarios similares
+    compra(Similar, Item),
+    compra(Usuario, ProductoComprado),
+    similar(ProductoComprado, Item),  % Solo productos similares
+    \+ compra(Usuario, Item).
+
+recomendar_recursiva(Usuario, Item) :-
+    compra(Usuario, Producto),                % Obtiene un producto comprado por el usuario
+    producto(Producto, Categoria),              % Determina la categoría del producto
+    productos_en_categoria(Categoria, Lista),   % Recolecta todos los productos de esa categoría
+    buscar_en_lista(Lista, Item),               % Busca recursivamente un producto bien calificado
+    \+ compra(Usuario, Item).                   % Evita recomendar productos ya comprados
+
+% Obtiene la lista de todos los productos pertenecientes a una categoría
+productos_en_categoria(Categoria, Lista) :-
+    findall(Producto, producto(Producto, Categoria), Lista).
+
+% Recorre recursivamente la lista de productos y selecciona aquel con calificación >= 4
+buscar_en_lista([Producto|_], Producto) :-
+    calificacion(_, Producto, Calificacion),
+    Calificacion >= 4.
+buscar_en_lista([_|Resto], Producto) :-
+    buscar_en_lista(Resto, Producto).
+
+top_items_usuario(Usuario, Items) :-
+    findall(Item, (calificacion(Usuario, Item, Calificacion), Calificacion > 3), Lista),
+    sort(Lista, Items).
+
+top_items_usuarios([], []).
+top_items_usuarios([Usuario|Resto], [(Usuario, Items)|Resultados]) :-
+    top_items_usuario(Usuario, Items),
+    top_items_usuarios(Resto, Resultados).
